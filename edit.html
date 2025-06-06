@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ru" class="theme-transition">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактирование операции</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dark-theme.css') }}" data-theme>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --edit-bg: var(--bg-card);
+            --edit-shadow: var(--shadow);
+            --edit-border: var(--border);
+            --edit-text: var(--text-primary);
+            --edit-secondary: var(--text-secondary);
+            --edit-input-bg: var(--input-bg);
+            --edit-input-border: var(--border-color);
+            --edit-success: var(--success);
+            --edit-danger: var(--danger);
+            --edit-accent: var(--accent-primary);
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--bg-dark);
+            padding: 20px;
+            transition: background-color 0.3s;
+        }
+
+        .edit-container {
+            width: 100%;
+            max-width: 500px;
+            background-color: var(--edit-bg);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px var(--edit-shadow);
+            padding: 30px;
+            transition: all 0.3s ease;
+            box-sizing: border-box; /* Добавлено для корректного расчета размеров */
+        }
+
+        .edit-header {
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .edit-header h1 {
+            font-size: 24px;
+            margin: 0;
+            color: var(--edit-text);
+            font-weight: 600;
+        }
+
+        .edit-header i {
+            font-size: 28px;
+            color: var(--edit-accent);
+            margin-bottom: 15px;
+            display: inline-block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--edit-secondary);
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 15px;
+            padding-right: 40px; /* Добавлено место для иконки */
+            border: 1px solid var(--edit-input-border);
+            border-radius: 8px;
+            background-color: var(--edit-input-bg);
+            color: var(--edit-text);
+            font-size: 15px;
+            transition: all 0.2s;
+            box-sizing: border-box; /* Добавлено для корректного расчета размеров */
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--edit-accent);
+            box-shadow: 0 0 0 3px rgba(114, 137, 218, 0.1);
+            outline: none;
+        }
+
+        .amount-field {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .amount-field.active {
+            display: block;
+        }
+
+        .error-message {
+            color: var(--edit-danger);
+            font-size: 13px;
+            margin-top: 5px;
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .save-btn {
+            flex: 1;
+            background-color: var(--edit-accent);
+            color: white;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-sizing: border-box; /* Добавлено для корректного расчета размеров */
+        }
+
+        .save-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .cancel-btn {
+            flex: 1;
+            background-color: var(--edit-danger);
+            color: white;
+            padding: 14px;
+            border-radius: 8px;
+            text-align: center;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 15px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-sizing: border-box; /* Добавлено для корректного расчета размеров */
+        }
+
+        .cancel-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Анимация для переключения полей суммы */
+        .amount-switch {
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Стили для иконок */
+        .form-icon {
+            position: absolute;
+            right: 15px;
+            top: 38px;
+            color: var(--edit-secondary);
+            pointer-events: none;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 576px) {
+            .edit-container {
+                padding: 20px;
+            }
+            
+            .edit-header h1 {
+                font-size: 20px;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Переключатель тем -->
+    <div class="theme-switch-wrapper">
+        <div class="theme-switch">
+            <input type="checkbox" id="theme-checkbox" class="theme-checkbox">
+            <label for="theme-checkbox" class="slider"></label>
+        </div>
+        <span class="current-theme-text">Темная</span>
+    </div>
+
+    <div class="edit-container">
+        <div class="edit-header">
+            <i class="fas fa-edit"></i>
+            <h1>Редактировать операцию</h1>
+        </div>
+        
+        <form method="POST" action="{{ url_for('edit_transaction', id=transaction.id) }}">
+            <input type="hidden" name="type" id="operation-type" 
+                   value="{% if transaction.amount > 0 %}income{% else %}expense{% endif %}">
+
+            <div class="form-group">
+                <label>Тип операции</label>
+                <div class="type-toggle">
+                    <button type="button" class="type-btn {% if transaction.amount > 0 %}active{% endif %}" 
+                            data-type="income">Доход</button>
+                    <button type="button" class="type-btn {% if transaction.amount <= 0 %}active{% endif %}" 
+                            data-type="expense">Расход</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Сумма</label>
+                <input type="text" 
+                       id="amount" 
+                       name="amount" 
+                       placeholder="0.00"
+                       value="{{ '%.2f'|format(transaction.amount if transaction.amount > 0 else -transaction.amount) }}">
+                <i class="fas fa-ruble-sign form-icon"></i>
+                <div class="error-message" id="amount-error">Введите сумму больше 0</div>
+            </div>
+
+            <div class="form-group">
+                <label for="category">Категория</label>
+                <select name="category" id="category">
+                    {% for id, name in [
+                        ('products','Продукты'),('food_restaurants','Кафе'),('pharmacy','Аптека'),
+                        ('pets','Питомцы'),('transport','Транспорт'),('travel','Путешествия'),
+                        ('marketplace','Онлайн'),('leisure','Развлечения'),('utilities','ЖКУ'),
+                        ('savings','Накопления'),('other','Прочее')] %}
+                        <option value="{{ id }}" {% if transaction.category == id %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+                <i class="fas fa-tag form-icon"></i>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="save-btn">
+                    <i class="fas fa-save"></i> Сохранить
+                </button>
+                <a href="{{ url_for('home') }}" class="cancel-btn">
+                    <i class="fas fa-times"></i> Отмена
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <style>
+        .type-toggle {
+            display: flex;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--edit-input-border);
+        }
+        
+        .type-btn {
+            flex: 1;
+            padding: 12px;
+            background: var(--edit-input-bg);
+            border: none;
+            cursor: pointer;
+            color: var(--edit-secondary);
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .type-btn.active {
+            background: var(--edit-accent);
+            color: white;
+        }
+
+        .type-btn:first-child {
+            border-right: 1px solid var(--edit-input-border);
+        }
+
+        /* Дополнительные адаптивные стили */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .edit-container {
+                padding: 15px;
+                margin: 10px;
+                width: calc(100% - 20px);
+            }
+
+            .edit-header h1 {
+                font-size: 20px;
+            }
+
+            .form-group input,
+            .form-group select {
+                font-size: 16px; /* Оптимальный размер для мобильных устройств */
+                padding: 10px;
+            }
+
+            .type-toggle {
+                flex-direction: row;
+                width: 100%;
+            }
+
+            .type-btn {
+                padding: 10px;
+                font-size: 14px;
+            }
+
+            .form-actions {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .save-btn,
+            .cancel-btn {
+                width: 100%;
+                padding: 12px;
+            }
+        }
+
+        /* Улучшения для маленьких экранов */
+        @media (max-width: 360px) {
+            .edit-container {
+                padding: 10px;
+            }
+
+            .edit-header h1 {
+                font-size: 18px;
+            }
+
+            .form-group label {
+                font-size: 13px;
+            }
+
+            .form-group input,
+            .form-group select {
+                font-size: 14px;
+                padding: 8px;
+            }
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const typeBtns = document.querySelectorAll('.type-btn');
+            const typeInput = document.getElementById('operation-type');
+            const amountInput = document.getElementById('amount');
+            const form = document.querySelector('form');
+            
+            // Функция форматирования чисел с обычным пробелом
+            function formatNumber(number) {
+                if (typeof number !== 'number') {
+                    return '';
+                }
+                return new Intl.NumberFormat('ru-RU', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }).format(number);
+            }
+
+            // Функция для очистки строки от всего, кроме цифр и точки
+            function cleanNumberString(str) {
+                if (!str) return '';
+                // Удаляем все, кроме цифр, точки и запятой
+                let cleaned = str.replace(/[^\d.,]/g, '');
+                // Заменяем запятую на точку, если она есть
+                cleaned = cleaned.replace(',', '.');
+                // Убираем все точки, кроме первой
+                const parts = cleaned.split('.');
+                if (parts.length > 2) {
+                    cleaned = parts[0] + '.' + parts.slice(1).join('');
+                }
+                return cleaned;
+            }
+
+            // При вводе в поле суммы
+            amountInput.addEventListener('input', function() {
+                const rawValue = cleanNumberString(this.value);
+                if (rawValue) {
+                    const value = parseFloat(rawValue);
+                    if (!isNaN(value)) {
+                        // Форматируем число для отображения
+                        const parts = rawValue.split('.');
+                        let formatted = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+                        if (parts.length > 1) {
+                            formatted += '.' + parts[1].slice(0, 2);
+                        }
+                        this.value = formatted;
+                        
+                        // Скрываем сообщение об ошибке при вводе корректного значения
+                        document.getElementById('amount-error').style.display = 'none';
+                    }
+                }
+            });
+
+            // При потере фокуса добавляем копейки
+            amountInput.addEventListener('blur', function() {
+                const rawValue = cleanNumberString(this.value);
+                if (rawValue) {
+                    const value = parseFloat(rawValue);
+                    if (!isNaN(value) && value > 0) {
+                        // Форматируем с двумя знаками после точки
+                        const formatted = value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+                        this.value = formatted;
+                    }
+                }
+            });
+
+            // При отправке формы
+            form.addEventListener('submit', function(e) {
+                const rawValue = cleanNumberString(amountInput.value);
+                if (!rawValue) {
+                    e.preventDefault();
+                    document.getElementById('amount-error').style.display = 'block';
+                    return;
+                }
+
+                const value = parseFloat(rawValue);
+                if (isNaN(value) || value <= 0) {
+                    e.preventDefault();
+                    document.getElementById('amount-error').style.display = 'block';
+                    return;
+                }
+
+                // Устанавливаем точное значение без форматирования
+                amountInput.value = value.toFixed(2);
+            });
+
+            // Обработка переключения типа операции
+            typeBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    typeBtns.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    typeInput.value = this.dataset.type;
+                });
+            });
+        });
+    </script>
+
+    <!-- Подключаем скрипт переключения темы -->
+    <script src="{{ url_for('static', filename='theme-switcher.js') }}"></script>
+
+</body>
+</html>
