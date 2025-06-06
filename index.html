@@ -1,0 +1,1744 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Семейный бюджет</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dark-theme.css') }}" data-theme>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        .transactions-table-container {
+    max-height: 650px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    transition: max-height 0.3s ease;
+}
+
+.transactions-table-container.expanded {
+    max-height: none;
+}
+
+.show-more-btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background-color: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+    margin-top: 10px;
+    transition: background-color 0.2s;
+}
+
+.show-more-btn:hover {
+    background-color: var(--accent-secondary);
+}
+
+.hidden-row {
+    display: none;
+}
+        /* Добавьте эти стили в существующий блок <style> */
+        .transactions-table-container {
+            max-height: 650px; /* Высота примерно для 13 строк */
+            overflow-y: auto;
+            margin-bottom: 15px;
+            transition: max-height 0.3s ease;
+        }
+    
+        .transactions-table-container.expanded {
+            max-height: none;
+        }
+    
+        .show-more-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: var(--accent-primary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            margin-top: 10px;
+            transition: background-color 0.2s;
+        }
+    
+        .show-more-btn:hover {
+            background-color: var(--accent-secondary);
+        }
+    </style>
+    <style>
+        /* Улучшенные стили для выравнивания фильтров */
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-group label {
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            background-color: var(--input-bg);
+            color: var(--text-primary);
+            box-sizing: border-box; /* Предотвращает выход за пределы контейнера */
+        }
+        
+        .filter-buttons {
+            grid-column: span 2;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        
+        .filter-buttons button {
+            flex: 1;
+            height: 42px; /* Фиксированная высота для кнопок */
+        }
+        
+        /* Улучшенные стили для формы добавления операции */
+        .form-container {
+            padding: 20px;
+        }
+        
+        .transaction-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .form-group {
+            margin-bottom: 0; /* Убираем внешний отступ, управляем через gap */
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            background-color: var(--input-bg);
+            color: var(--text-primary);
+            box-sizing: border-box;
+            height: 42px; /* Фиксированная высота для всех полей ввода */
+        }
+        
+        .save-btn {
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Стили для накоплений */
+        .savings-actions-container {
+            margin-top: 15px;
+        }
+        
+        .savings-input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .savings-input-group input {
+            flex: 1;
+            height: 42px;
+            box-sizing: border-box;
+        }
+        
+        .savings-input-group button {
+            height: 42px;
+        }
+        
+        .savings-type-select {
+            width: 100%;
+            padding: 10px;
+            height: 42px;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            background-color: var(--input-bg);
+            color: var(--text-primary);
+            box-sizing: border-box;
+        }
+        
+        /* Стили для переключателя темы */
+        .theme-switch-wrapper {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        .theme-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+            margin-right: 10px;
+        }
+        
+        .theme-checkbox {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #2196F3;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        .theme-checkbox:checked + .slider {
+            background-color: #444;
+        }
+        
+        .theme-checkbox:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        .current-theme-text {
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+    </style>
+    <style>
+        /* Основные стили */
+        .container {
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .main-content {
+            display: flex;
+            gap: 50px; /* Увеличиваем отступ между колонками */
+            flex-wrap: wrap;
+            position: relative; /* Добавляем для правильного позиционирования */
+        }
+
+        .left-column {
+            flex: 1;
+            min-width: 300px;
+            position: relative; /* Добавляем для правильного позиционирования */
+        }
+
+        .right-column {
+            flex: 2;
+            min-width: 300px;
+            position: relative; /* Добавляем для правильного позиционирования */
+        }
+
+        .stats-container,
+        .chart-container,
+        .savings-card {
+            width: 100%;
+        }
+
+        /* Отступы между блоками */
+        .stats-container,
+        .chart-container,
+        .savings-card {
+            margin-bottom: 30px;
+        }
+
+        /* Дополнительный отступ для последнего элемента в левой колонке */
+        .left-column > *:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Адаптивные стили для мобильных устройств */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .main-content {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .left-column,
+            .right-column {
+                flex: none;
+                width: 100%;
+            }
+
+            /* Сохраняем отступы на мобильных устройствах */
+            .stats-container,
+            .chart-container,
+            .savings-card {
+                margin-bottom: 20px;
+            }
+
+            /* Статистика */
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .stat-card {
+                padding: 15px;
+            }
+
+            /* Формы */
+            .form-container {
+                padding: 15px;
+            }
+
+            .form-group {
+                margin-bottom: 15px;
+            }
+
+            /* Таблица транзакций */
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            table {
+                font-size: 14px;
+            }
+
+            th, td {
+                padding: 8px;
+                white-space: nowrap;
+            }
+
+            /* Чат-бот */
+            .chatbot-container {
+                margin-top: 20px;
+            }
+
+            .chat-messages {
+                height: 250px;
+            }
+
+            .message-content {
+                max-width: 85%;
+            }
+
+            /* Кнопки действий */
+            .form-actions {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .save-btn,
+            .cancel-btn {
+                width: 100%;
+            }
+
+            /* Фильтры */
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-buttons {
+                grid-column: 1;
+                flex-direction: column;
+            }
+
+            /* Накопления */
+            .savings-input-group {
+                flex-direction: column;
+            }
+
+            .savings-input-group input,
+            .savings-input-group button {
+                width: 100%;
+            }
+        }
+
+        /* Улучшения для планшетов */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .filters-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Улучшения для устройств с маленьким экраном */
+        @media (max-width: 360px) {
+            .stat-card h3 {
+                font-size: 12px;
+            }
+
+            .stat-card p {
+                font-size: 18px;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 6px;
+            }
+        }
+    </style>
+    <style>
+        .form-group input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background-color: var(--input-bg);
+            color: var(--text);
+        }
+
+        .form-group input[type="text"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(114, 137, 218, 0.1);
+            outline: none;
+        }
+
+        .error-message {
+            color: var(--danger);
+            font-size: 13px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        @media (max-width: 576px) {
+            .form-group input[type="text"] {
+                font-size: 14px;
+                padding: 8px;
+            }
+        }
+    </style>
+    <style>
+        .mb-30 {
+            margin-bottom: 30px !important;
+        }
+    </style>
+    <style>
+        .stats-container {
+            margin-bottom: 30px;
+        }
+
+        .stats-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .stat-card {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px var(--shadow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stats-icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: var(--accent-primary);
+        }
+
+        .stat-card h3 {
+            color: var(--text-secondary);
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .stat-card p {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        .stat-card p.income {
+            color: var(--success);
+        }
+
+        .stat-card p.expense {
+            color: var(--danger);
+        }
+
+        /* Адаптивные стили для мобильных устройств */
+        @media (max-width: 768px) {
+            .stats-grid {
+                gap: 10px;
+            }
+            
+            .stat-card {
+                padding: 15px;
+            }
+            
+            .stat-card h3 {
+                font-size: 12px;
+            }
+            
+            .stat-card p {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Флеш сообщения -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-container">
+        {% for category, message in messages %}
+        <div class="flash {{ category }}">
+            {{ message }}
+            <button onclick="this.parentElement.style.display='none'" style="background: transparent; border: none; color: white; cursor: pointer; margin-left: 10px;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- Проверяем, является ли пользователь администратором -->
+    {% if user.is_admin %}
+    <div class="admin-link">
+        <a href="{{ url_for('admin_panel') }}" class="btn">
+            <i class="fas fa-shield-alt"></i> Панель администратора
+        </a>
+    </div>
+    {% endif %}
+    
+    <!-- Переключатель тем -->
+    <div class="theme-switch-wrapper">
+        <div class="theme-switch">
+            <input type="checkbox" id="theme-checkbox" class="theme-checkbox">
+            <label for="theme-checkbox" class="slider"></label>
+        </div>
+        <span class="current-theme-text">Темная</span>
+    </div>
+    
+    <div class="container">
+        <div class="main-content">
+            <!-- Левая колонка с формами и статистикой -->
+            <div class="left-column">
+                <h1><i class="fas fa-wallet"></i> Планирование семейного бюджета</h1>
+                
+                <!-- Форма добавления операций -->
+                <div class="form-container">
+                    <h2><i class="fas fa-plus-circle"></i> Добавить операцию</h2>
+                    <form method="POST" action="{{ url_for('add_transaction') }}" id="transaction-form" class="transaction-form">
+                        <div class="form-group">
+                            <label for="type">Тип операции:</label>
+                            <select id="type" name="type" class="operation-type">
+                                <option value="income">Доход</option>
+                                <option value="expense" selected>Расход</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" id="income-field" style="display: none;">
+                            <label for="income">Сумма дохода:</label>
+                            <input type="text" 
+                                   id="income" 
+                                   name="income" 
+                                   placeholder="0.00">
+                            <div class="error-message" id="income-error">Пожалуйста, введите сумму больше 0</div>
+                        </div>
+                        
+                        <div class="form-group" id="expense-field">
+                            <label for="expense">Сумма расхода:</label>
+                            <input type="text" 
+                                   id="expense" 
+                                   name="expense" 
+                                   placeholder="0.00">
+                            <div class="error-message" id="expense-error">Пожалуйста, введите сумму больше 0</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="category">Категория:</label>
+                            <select id="category" name="category">
+                                <option value="products">Продукты питания</option>
+                                <option value="food_restaurants">Кафе/рестораны</option>
+                                <option value="pharmacy">Аптека/медицина</option>
+                                <option value="pets">Питомцы/ветеринарка</option>
+                                <option value="transport">Транспорт/ТС</option>
+                                <option value="travel">Путешествия/отдых</option>
+                                <option value="marketplace">Онлайн-покупки</option>
+                                <option value="leisure">Развлечения/досуг</option>
+                                <option value="utilities">ЖКУ/связь</option>
+                                <option value="other">Прочие расходы</option>
+                            </select>
+                        </div>
+                        
+                        <button type="submit" class="save-btn">
+                            <i class="fas fa-save"></i> Добавить операцию
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Блок статистики -->
+                <div class="stats-container">
+                    <h2><i class="fas fa-chart-line"></i> Финансовая сводка</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <i class="fas fa-arrow-up stats-icon"></i>
+                            <h3>Общий доход</h3>
+                            <p class="income" data-value="{{ total_income }}">{{ "%.2f"|format(total_income) }} ₽</p>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-arrow-down stats-icon"></i>
+                            <h3>Общий расход</h3>
+                            <p class="expense" data-value="{{ total_expense }}">{{ "%.2f"|format(total_expense) }} ₽</p>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-balance-scale stats-icon"></i>
+                            <h3>Текущий баланс</h3>
+                            <p class="{{ 'income' if balance >= 0 else 'expense' }}" data-value="{{ balance }}">{{ "%.2f"|format(balance) }} ₽</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Круговая диаграмма с градиентами -->
+                <div class="chart-container">
+                    <h2><i class="fas fa-chart-pie"></i> Распределение расходов</h2>
+                    <div class="chart-wrapper">
+                        <canvas id="expenseChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Блок накоплений (упрощенный) -->
+                <div class="savings-card">
+                    <h3><i class="fas fa-piggy-bank"></i> Накопления</h3>
+                    <div class="savings-progress">
+                        <div class="progress-bar" style="width: {{ savings_percentage }}%"></div>
+                    </div>
+                    <p>Отложено: <span data-value="{{ savings_amount }}">{{ "%.2f"|format(savings_amount) }}</span> ₽ из <span data-value="{{ savings_goal }}">{{ "%.2f"|format(savings_goal) }}</span> ₽</p>
+                    
+                    <div class="savings-actions-container">
+                        <div class="savings-select">
+                            <select id="savings-operation" class="savings-type-select">
+                                <option value="add">Пополнить</option>
+                                <option value="withdraw">Снять</option>
+                                <option value="goal">Обновить цель</option>
+                            </select>
+                        </div>
+                        
+                        <div id="savings-forms-container">
+                            <!-- Форма для пополнения/снятия -->
+                            <form method="POST" action="/add_savings" id="savings-form" class="active-form">
+                                <input type="hidden" name="operation_type" id="operation-type-field" value="expense">
+                                <div class="savings-input-group">
+                                    <input type="number" name="amount" id="savings-amount" min="1" placeholder="Введите сумму" required>
+                                    <button type="submit" id="savings-submit-btn" class="save-btn">
+                                        <i class="fas fa-plus-circle"></i> Пополнить
+                                    </button>
+                                </div>
+                            </form>
+                            
+                            <!-- Форма для обновления цели (изначально скрыта) -->
+                            <form method="POST" action="/update_savings_goal" id="goal-form" style="display:none;">
+                                <div class="savings-input-group">
+                                    <input type="number" name="goal" step="100" min="0" placeholder="Новая цель" value="{{ savings_goal }}" required>
+                                    <button type="submit" class="save-btn">
+                                        <i class="fas fa-sync-alt"></i> Обновить цель
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Правая колонка с историей операций -->
+            <div class="right-column">
+                <!-- Фильтры для транзакций -->
+                <div class="filters-container">
+                    <h2><i class="fas fa-filter"></i> Фильтр операций</h2>
+                    <form action="{{ url_for('home') }}" method="GET" class="filters-form">
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label for="category-filter">Категория:</label>
+                                <select id="category-filter" name="category">
+                                    <option value="all" {% if not current_category %}selected{% endif %}>Все категории</option>
+                                    <option value="products" {% if current_category == 'products' %}selected{% endif %}>Продукты питания</option>
+                                    <option value="food_restaurants" {% if current_category == 'food_restaurants' %}selected{% endif %}>Кафе/рестораны</option>
+                                    <option value="pharmacy" {% if current_category == 'pharmacy' %}selected{% endif %}>Аптека/медицина</option>
+                                    <option value="pets" {% if current_category == 'pets' %}selected{% endif %}>Питомцы/ветеринарка</option>
+                                    <option value="transport" {% if current_category == 'transport' %}selected{% endif %}>Транспорт/ТС</option>
+                                    <option value="travel" {% if current_category == 'travel' %}selected{% endif %}>Путешествия/отдых</option>
+                                    <option value="marketplace" {% if current_category == 'marketplace' %}selected{% endif %}>Онлайн-покупки</option>
+                                    <option value="leisure" {% if current_category == 'leisure' %}selected{% endif %}>Развлечения/досуг</option>
+                                    <option value="utilities" {% if current_category == 'utilities' %}selected{% endif %}>ЖКУ/связь</option>
+                                    <option value="savings" {% if current_category == 'savings' %}selected{% endif %}>Накопления</option>
+                                    <option value="other" {% if current_category == 'other' %}selected{% endif %}>Прочие расходы</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="date-from">С даты:</label>
+                                <input type="date" id="date-from" name="date_from" value="{{ date_from }}">
+                            </div>
+                            <div class="filter-group">
+                                <label for="date-to">По дату:</label>
+                                <input type="date" id="date-to" name="date_to" value="{{ date_to }}">
+                            </div>
+                            <div class="filter-buttons">
+                                <button type="submit" class="filter-btn apply-filter">
+                                    <i class="fas fa-search"></i> Применить
+                                </button>
+                                <button type="button" onclick="window.location.href='{{ url_for('home') }}'" class="filter-btn reset-filter">
+                                    <i class="fas fa-undo"></i> Сбросить
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="transactions-container">
+                    <h2><i class="fas fa-history"></i> История операций</h2>
+                    {% if transactions %}
+                    <div class="table-responsive">
+                        <div class="transactions-table-container" id="transactions-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th><i class="fas fa-calendar-day"></i> Дата</th>
+                                        <th><i class="fas fa-exchange-alt"></i> Операция</th>
+                                        <th><i class="fas fa-ruble-sign"></i> Сумма</th>
+                                        <th><i class="fas fa-tag"></i> Категория</th>
+                                        <th><i class="fas fa-cogs"></i> Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for transaction in transactions[:7] %}
+                                    <tr class="fade-in">
+                                        <td>{{ transaction.date.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            {% if transaction.amount > 0 %}
+                                                <span class="income"><i class="fas fa-arrow-up"></i> Доход</span>
+                                            {% else %}
+                                                <span class="expense"><i class="fas fa-arrow-down"></i> Расход</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="{{ 'income' if transaction.amount > 0 else 'expense' }}">
+                                            {{ "%.2f"|format(transaction.amount if transaction.amount > 0 else abs(transaction.amount)) }} ₽
+                                        </td>
+                                        <td>
+                                            {% if transaction.category == 'products' %}<i class="fas fa-shopping-basket"></i> Продукты
+                                            {% elif transaction.category == 'food_restaurants' %}<i class="fas fa-utensils"></i> Кафе
+                                            {% elif transaction.category == 'pharmacy' %}<i class="fas fa-pills"></i> Аптека
+                                            {% elif transaction.category == 'pets' %}<i class="fas fa-paw"></i> Питомцы
+                                            {% elif transaction.category == 'transport' %}<i class="fas fa-car"></i> Транспорт
+                                            {% elif transaction.category == 'travel' %}<i class="fas fa-plane"></i> Путешествия
+                                            {% elif transaction.category == 'marketplace' %}<i class="fas fa-shopping-cart"></i> Онлайн-покупки
+                                            {% elif transaction.category == 'leisure' %}<i class="fas fa-gamepad"></i> Развлечения
+                                            {% elif transaction.category == 'utilities' %}<i class="fas fa-home"></i> ЖКУ
+                                            {% elif transaction.category == 'savings' %}<i class="fas fa-piggy-bank"></i> Накопления
+                                            {% else %}<i class="fas fa-question-circle"></i> Прочие
+                                            {% endif %}
+                                        </td>
+                                        <td class="actions">
+                                            <a href="{{ url_for('edit_transaction', id=transaction.id) }}" class="edit-btn" title="Редактировать">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{{ url_for('delete_transaction', id=transaction.id) }}" class="delete-btn" title="Удалить" onclick="return confirm('Удалить эту операцию?')">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% if transactions|length > 7 %}
+                                        {% for transaction in transactions[7:] %}
+                                        <tr class="fade-in hidden-row" style="display: none;">
+                                            <td>{{ transaction.date.strftime('%Y-%m-%d') }}</td>
+                                            <td>
+                                                {% if transaction.amount > 0 %}
+                                                    <span class="income"><i class="fas fa-arrow-up"></i> Доход</span>
+                                                {% else %}
+                                                    <span class="expense"><i class="fas fa-arrow-down"></i> Расход</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="{{ 'income' if transaction.amount > 0 else 'expense' }}">
+                                                {{ "%.2f"|format(transaction.amount if transaction.amount > 0 else abs(transaction.amount)) }} ₽
+                                            </td>
+                                            <td>
+                                                {% if transaction.category == 'products' %}<i class="fas fa-shopping-basket"></i> Продукты
+                                                {% elif transaction.category == 'food_restaurants' %}<i class="fas fa-utensils"></i> Кафе
+                                                {% elif transaction.category == 'pharmacy' %}<i class="fas fa-pills"></i> Аптека
+                                                {% elif transaction.category == 'pets' %}<i class="fas fa-paw"></i> Питомцы
+                                                {% elif transaction.category == 'transport' %}<i class="fas fa-car"></i> Транспорт
+                                                {% elif transaction.category == 'travel' %}<i class="fas fa-plane"></i> Путешествия
+                                                {% elif transaction.category == 'marketplace' %}<i class="fas fa-shopping-cart"></i> Онлайн-покупки
+                                                {% elif transaction.category == 'leisure' %}<i class="fas fa-gamepad"></i> Развлечения
+                                                {% elif transaction.category == 'utilities' %}<i class="fas fa-home"></i> ЖКУ
+                                                {% elif transaction.category == 'savings' %}<i class="fas fa-piggy-bank"></i> Накопления
+                                                {% else %}<i class="fas fa-question-circle"></i> Прочие
+                                                {% endif %}
+                                            </td>
+                                            <td class="actions">
+                                                <a href="{{ url_for('edit_transaction', id=transaction.id) }}" class="edit-btn" title="Редактировать">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{{ url_for('delete_transaction', id=transaction.id) }}" class="delete-btn" title="Удалить" onclick="return confirm('Удалить эту операцию?')">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if transactions|length > 7 %}
+                        <button class="show-more-btn" id="show-more-btn">
+                            <i class="fas fa-chevron-down"></i> Показать все операции ({{ transactions|length }})
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-receipt empty-icon"></i>
+                        <p>Пока нет операций. Добавьте первую!</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Чат-бот -->
+                <div class="chatbot-container">
+                    <h2><i class="fas fa-robot"></i> Финансовый помощник</h2>
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="message bot">
+                            <i class="fas fa-robot"></i>
+                            <div class="message-content">
+                                Привет! Я ваш личный помощник. Я могу подсказать информацию о ваших финансах или помочь с выбором досуга (кино, рестораны, развлечения). Что вас интересует?
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" id="user-message" placeholder="Введите ваше сообщение...">
+                        <button id="send-message">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <style>
+                    .chatbot-container {
+                        background-color: var(--bg-card);
+                        border-radius: 12px;
+                        box-shadow: 0 4px 12px var(--shadow);
+                        padding: 20px;
+                        margin-top: 30px;
+                    }
+
+                    .chatbot-container h2 {
+                        color: var(--text-primary);
+                        font-size: 18px;
+                        margin-bottom: 15px;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                    }
+
+                    .chat-messages {
+                        height: 300px;
+                        overflow-y: auto;
+                        padding: 10px;
+                        border-radius: 8px;
+                        background-color: var(--bg-element);
+                        margin-bottom: 15px;
+                    }
+
+                    .message {
+                        display: flex;
+                        align-items: flex-start;
+                        margin-bottom: 15px;
+                        animation: slideIn 0.3s ease;
+                    }
+
+                    .message.user {
+                        flex-direction: row-reverse;
+                    }
+
+                    .message i {
+                        background-color: var(--accent-primary);
+                        color: white;
+                        padding: 8px;
+                        border-radius: 50%;
+                        margin: 0 10px;
+                    }
+
+                    .message.user i {
+                        background-color: var(--edit-secondary);
+                    }
+
+                    .message-content {
+                        background-color: var(--bg-card);
+                        padding: 10px 15px;
+                        border-radius: 12px;
+                        max-width: 70%;
+                        color: var(--text-primary);
+                        box-shadow: 0 2px 4px var(--shadow);
+                    }
+
+                    .message.user .message-content {
+                        background-color: var(--accent-primary);
+                        color: white;
+                    }
+
+                    .chat-input {
+                        display: flex;
+                        gap: 10px;
+                    }
+
+                    .chat-input input {
+                        flex: 1;
+                        padding: 12px;
+                        border: 1px solid var(--border);
+                        border-radius: 8px;
+                        background-color: var(--input-bg);
+                        color: var(--text-primary);
+                        font-size: 14px;
+                    }
+
+                    .chat-input button {
+                        background-color: var(--accent-primary);
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        padding: 0 20px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    }
+
+                    .chat-input button:hover {
+                        opacity: 0.9;
+                        transform: translateY(-1px);
+                    }
+
+                    @keyframes slideIn {
+                        from {
+                            opacity: 0;
+                            transform: translateY(10px);
+                        }
+                        to {
+                            opacity: 1;
+                            transform: translateY(0);
+                        }
+                    }
+                </style>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        // Функция форматирования чисел с обычным пробелом
+                        function formatNumber(number) {
+                            if (typeof number !== 'number') {
+                                return '';
+                            }
+                            return new Intl.NumberFormat('ru-RU', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }).format(number);
+                        }
+
+                        // Функция для очистки строки от всего, кроме цифр и точки
+                        function cleanNumberString(str) {
+                            if (!str) return '';
+                            // Удаляем все, кроме цифр, точки и запятой
+                            let cleaned = str.replace(/[^\d.,]/g, '');
+                            // Заменяем запятую на точку, если она есть
+                            cleaned = cleaned.replace(',', '.');
+                            // Убираем все точки, кроме первой
+                            const parts = cleaned.split('.');
+                            if (parts.length > 2) {
+                                cleaned = parts[0] + '.' + parts.slice(1).join('');
+                            }
+                            return cleaned;
+                        }
+
+                        // Обработка отправки формы
+                        const transactionForm = document.getElementById('transaction-form');
+                        if (transactionForm) {
+                            transactionForm.addEventListener('submit', function(e) {
+                                const type = document.getElementById('type').value;
+                                const amountField = type === 'income' ? 'income' : 'expense';
+                                const amountInput = document.getElementById(amountField);
+                                const rawValue = cleanNumberString(amountInput.value);
+                                
+                                if (!rawValue) {
+                                    e.preventDefault();
+                                    const errorElement = document.getElementById(amountField + '-error');
+                                    if (errorElement) {
+                                        errorElement.style.display = 'block';
+                                    }
+                                    return;
+                                }
+
+                                const value = parseFloat(rawValue);
+                                if (isNaN(value) || value <= 0) {
+                                    e.preventDefault();
+                                    const errorElement = document.getElementById(amountField + '-error');
+                                    if (errorElement) {
+                                        errorElement.style.display = 'block';
+                                    }
+                                    return;
+                                }
+
+                                // Устанавливаем точное значение без форматирования
+                                amountInput.value = value.toFixed(2);
+                            });
+
+                            // При вводе в поле суммы
+                            const amountInputs = document.querySelectorAll('input[pattern]');
+                            amountInputs.forEach(input => {
+                                input.addEventListener('input', function(e) {
+                                    const rawValue = cleanNumberString(this.value);
+                                    if (rawValue) {
+                                        const value = parseFloat(rawValue);
+                                        if (!isNaN(value)) {
+                                            // Форматируем число для отображения
+                                            const parts = rawValue.split('.');
+                                            let formatted = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+                                            if (parts.length > 1) {
+                                                formatted += '.' + parts[1].slice(0, 2);
+                                            }
+                                            this.value = formatted;
+                                            
+                                            // Скрываем сообщение об ошибке при вводе корректного значения
+                                            const errorElement = document.getElementById(this.id + '-error');
+                                            if (errorElement) {
+                                                errorElement.style.display = 'none';
+                                            }
+                                        }
+                                    }
+                                });
+
+                                // При потере фокуса добавляем копейки
+                                input.addEventListener('blur', function() {
+                                    const rawValue = cleanNumberString(this.value);
+                                    if (rawValue) {
+                                        const value = parseFloat(rawValue);
+                                        if (!isNaN(value) && value > 0) {
+                                            // Форматируем с двумя знаками после точки
+                                            const formatted = value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+                                            this.value = formatted;
+                                        }
+                                    }
+                                });
+                            });
+                        }
+
+                        // Применяем форматирование к полям ввода сумм
+                        const amountInputs = document.querySelectorAll('input[pattern]');
+                        amountInputs.forEach(input => {
+                            // При вводе обрабатываем число
+                            input.addEventListener('input', (e) => {
+                                handleNumberInput(e.target);
+                            });
+
+                            // При потере фокуса форматируем полностью
+                            input.addEventListener('blur', function() {
+                                const rawValue = cleanNumberString(this.value);
+                                if (!rawValue) {
+                                    this.value = '';
+                                    return;
+                                }
+                                
+                                const value = parseFloat(rawValue);
+                                const errorElement = document.getElementById(this.id + '-error');
+                                
+                                if (errorElement) {
+                                    if (isNaN(value) || value <= 0) {
+                                        errorElement.style.display = 'block';
+                                        this.value = '';
+                                    } else {
+                                        errorElement.style.display = 'none';
+                                        this.value = formatNumber(value);
+                                    }
+                                }
+                            });
+
+                            // При получении фокуса оставляем только цифры и точку
+                            input.addEventListener('focus', function() {
+                                const rawValue = cleanNumberString(this.value);
+                                if (rawValue) {
+                                    const value = parseFloat(rawValue);
+                                    if (!isNaN(value)) {
+                                        this.value = value.toFixed(2);
+                                    }
+                                }
+                            });
+                        });
+
+                        // Форматируем все числовые значения на странице
+                        function formatAllNumbers() {
+                            document.querySelectorAll('[data-value]').forEach(element => {
+                                const value = parseFloat(element.dataset.value);
+                                if (!isNaN(value)) {
+                                    element.textContent = formatNumber(value) + ' ₽';
+                                }
+                            });
+
+                            // Форматируем числа в таблице транзакций
+                            document.querySelectorAll('td.income, td.expense').forEach(cell => {
+                                const text = cell.textContent.trim();
+                                if (text) {
+                                    const value = parseFloat(text);
+                                    if (!isNaN(value)) {
+                                        cell.textContent = formatNumber(Math.abs(value)) + ' ₽';
+                                    }
+                                }
+                            });
+                        }
+
+                        formatAllNumbers();
+
+                        const chatMessages = document.getElementById('chat-messages');
+                        const userInput = document.getElementById('user-message');
+                        const sendButton = document.getElementById('send-message');
+
+                        function addMessage(message, isUser = false) {
+                            const messageDiv = document.createElement('div');
+                            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+                            
+                            const icon = document.createElement('i');
+                            icon.className = isUser ? 'fas fa-user' : 'fas fa-robot';
+                            
+                            const content = document.createElement('div');
+                            content.className = 'message-content';
+                            content.textContent = message;
+                            
+                            if (isUser) {
+                                messageDiv.appendChild(content);
+                                messageDiv.appendChild(icon);
+                            } else {
+                                messageDiv.appendChild(icon);
+                                messageDiv.appendChild(content);
+                            }
+                            
+                            chatMessages.appendChild(messageDiv);
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        }
+
+                        function getBotResponse(message) {
+                            const lowerMessage = message.toLowerCase();
+                            
+                            // Обработка запроса на выбор одного варианта
+                            if (lowerMessage.includes('выбери') && lowerMessage.includes('одно')) {
+                                const options = [];
+                                if (lowerMessage.includes('кино')) options.push('кино');
+                                if (lowerMessage.includes('ресторан')) options.push('ресторан');
+                                if (lowerMessage.includes('кафе')) options.push('кафе');
+                                
+                                // Если варианты не найдены в сообщении, проверяем предыдущий контекст
+                                if (options.length === 0) {
+                                    // Добавляем стандартные варианты
+                                    options.push('кино', 'ресторан');
+                                }
+                                
+                                const randomChoice = options[Math.floor(Math.random() * options.length)];
+                                const timeOfDay = new Date().getHours() < 12 ? 'утро' : 
+                                                 new Date().getHours() < 17 ? 'день' : 'вечер';
+                                
+                                if (randomChoice === 'кино') {
+                                    const prices = timeOfDay === 'утро' ? '250,00-300,00' :
+                                                  timeOfDay === 'день' ? '300,00-400,00' : '400,00-500,00';
+                                    return `Я выбираю кино! ${
+                                        timeOfDay === 'утро' ? 
+                                        `Утренний сеанс - отличный выбор. Меньше людей и билеты дешевле (${prices} ₽). Можно успеть позавтракать после фильма.` :
+                                        timeOfDay === 'день' ? 
+                                        `Дневной сеанс - хороший вариант. Цены умеренные (${prices} ₽), и после можно успеть поужинать.` :
+                                        `Вечерний сеанс создаст особую атмосферу. Билеты будут стоить ${prices} ₽, но оно того стоит!`
+                                    }`;
+                                } else if (randomChoice === 'ресторан') {
+                                    const prices = timeOfDay === 'утро' ? '800,00-1 000,00' :
+                                                  timeOfDay === 'день' ? '1 000,00-1 500,00' : '1 500,00-2 000,00';
+                                    return `Я выбираю ресторан! ${
+                                        timeOfDay === 'утро' ? 
+                                        `Утренний завтрак в ресторане - это особенное удовольствие. Средний чек ${prices} ₽. Можно неспешно насладиться едой и атмосферой.` :
+                                        timeOfDay === 'день' ? 
+                                        `Обед в ресторане - отличный выбор. Многие рестораны предлагают бизнес-ланчи, средний чек ${prices} ₽.` :
+                                        `Вечер в ресторане - идеальное решение. Можно насладиться ужином при свечах, средний чек составит ${prices} ₽.`
+                                    }`;
+                                } else if (randomChoice === 'кафе') {
+                                    const prices = timeOfDay === 'утро' ? '400,00-600,00' :
+                                                  timeOfDay === 'день' ? '500,00-700,00' : '600,00-800,00';
+                                    return `Я выбираю кафе! ${
+                                        timeOfDay === 'утро' ? 
+                                        `Утренний кофе и завтрак в уютном кафе - прекрасное начало дня. Средний чек ${prices} ₽.` :
+                                        timeOfDay === 'день' ? 
+                                        `Обед в кафе - отличный выбор. Быстро, вкусно и демократично по цене (${prices} ₽).` :
+                                        `Вечер в кафе будет уютным и приятным. Средний чек составит ${prices} ₽.`
+                                    }`;
+                                }
+                            }
+
+                            // Приветствия
+                            if (lowerMessage.includes('привет') || lowerMessage.includes('здравствуй')) {
+                                return 'Здравствуйте! Я готов помочь с выбором. Спрашивайте, например: "куда пойти?" или "кино или ресторан?"';
+                            }
+
+                            // Обработка простых вопросов выбора
+                            const hasOr = lowerMessage.includes(' или ');
+                            const mentionsKino = lowerMessage.includes('кино');
+                            const mentionsRestaurant = lowerMessage.includes('ресторан');
+                            const mentionsCafe = lowerMessage.includes('кафе');
+
+                            // Определяем время суток
+                            const timeOfDay = lowerMessage.includes('вечер') ? 'вечер' : 
+                                            lowerMessage.includes('утр') ? 'утро' : 
+                                            new Date().getHours() < 12 ? 'утро' :
+                                            new Date().getHours() < 17 ? 'день' : 'вечер';
+
+                            // Обработка простого выбора между вариантами
+                            if (hasOr || (mentionsKino && mentionsRestaurant) || (mentionsRestaurant && mentionsCafe)) {
+                                if (mentionsKino && mentionsRestaurant) {
+                                    if (timeOfDay === 'вечер') {
+                                        return `Сейчас вечер, поэтому рекомендую такой план: сначала ресторан (около 19:00), а затем кино (21:00-22:00). В ресторане вы сможете спокойно поужинать (${formatNumber(1500)}-${formatNumber(2000)} ₽), а потом насладиться фильмом (${formatNumber(400)}-${formatNumber(500)} ₽ за билет). Так будет комфортнее, чем идти в ресторан после кино.`;
+                                    } else if (timeOfDay === 'утро') {
+                                        return `Сейчас утро, поэтому предлагаю начать с кино (билеты на утренние сеансы дешевле, ${formatNumber(250)}-${formatNumber(300)} ₽), а затем пойти на поздний завтрак в ресторан (${formatNumber(800)}-${formatNumber(1000)} ₽). Утром в кино мало людей, а в ресторане как раз начнется время завтраков.`;
+                                    } else {
+                                        return `Сейчас день, поэтому рекомендую сначала посетить кино (${formatNumber(300)}-${formatNumber(400)} ₽ за билет), а потом пообедать в ресторане (есть выгодные бизнес-ланчи по ${formatNumber(400)}-${formatNumber(600)} ₽). Днём в кино не так много людей, а в ресторанах действуют выгодные дневные предложения.`;
+                                    }
+                                }
+
+                                if (mentionsRestaurant && mentionsCafe) {
+                                    if (timeOfDay === 'вечер') {
+                                        return 'Сейчас вечер, поэтому однозначно рекомендую ресторан. Вечером там более располагающая атмосфера, красивая подача блюд и часто живая музыка. Средний чек 1500-2000₽. В кафе вечером обычно менее уютно и меньше выбор блюд.';
+                                    } else if (timeOfDay === 'утро') {
+                                        return 'Сейчас утро, поэтому лучше выбрать кафе. Там отличные завтраки по демократичным ценам (400-600₽), уютная атмосфера и быстрое обслуживание. В ресторанах утром обычно небольшой выбор блюд.';
+                                    } else {
+                                        return 'Сейчас день, рекомендую кафе. Днём там хорошие обеденные предложения (500-700₽), быстрое обслуживание и приятная атмосфера. Рестораны лучше оставить для вечера.';
+                                    }
+                                }
+                            }
+
+                            // Обработка остальных вопросов о выборе досуга
+                            if (lowerMessage.includes('куда пойти') || lowerMessage.includes('куда сходить') || 
+                                lowerMessage.includes('где провести') || lowerMessage.includes('не могу определиться') ||
+                                lowerMessage.includes('что выбрать')) {
+                                
+                                const suggestions = {
+                                    утро: 'На утро я бы рекомендовал посетить уютное кафе с завтраками (400-600 рублей), а затем сходить в кино на утренний сеанс (250-300 рублей) или погулять в парке.',
+                                    день: 'В дневное время хорошим выбором будет поход в кино (300-400 рублей за билет) и обед в ресторане с бизнес-ланчем (400-600 рублей), либо посещение музея с последующим обедом в кафе.',
+                                    вечер: 'Вечером идеальным вариантом будет ужин в ресторане (1500-2000 рублей) с последующим походом в кино на вечерний сеанс (400-500 рублей) или прогулкой по вечернему городу.'
+                                };
+                                
+                                return suggestions[timeOfDay];
+                            }
+
+                            // Вопросы о балансе
+                            if (lowerMessage.includes('баланс')) {
+                                const balance = {{ balance }};
+                                if (balance > 0) {
+                                    return `Ваш текущий баланс: ${formatNumber(balance)} ₽. У вас положительный баланс - это хорошо!`;
+                                } else {
+                                    return `Ваш текущий баланс: ${formatNumber(balance)} ₽. Рекомендую сократить расходы или увеличить доходы.`;
+                                }
+                            }
+
+                            // Вопросы о доходах
+                            if (lowerMessage.includes('доход')) {
+                                const income = {{ total_income }};
+                                return `Ваш общий доход: ${formatNumber(income)} ₽. ${
+                                    income > 50000 ? 'Хороший доход! Рекомендую часть средств откладывать.' : 'Возможно, стоит подумать об источниках дополнительного дохода.'
+                                }`;
+                            }
+
+                            // Вопросы о расходах
+                            if (lowerMessage.includes('расход')) {
+                                const expense = {{ total_expense }};
+                                const income = {{ total_income }};
+                                const expenseRatio = (expense / income) * 100;
+                                return `Ваши общие расходы: ${formatNumber(expense)} ₽. ${
+                                    expenseRatio > 80 ? 'Внимание! Ваши расходы составляют более 80% от доходов.' : 'Соотношение расходов к доходам в норме.'
+                                }`;
+                            }
+
+                            // Вопросы о накоплениях
+                            if (lowerMessage.includes('накоплен')) {
+                                const savings = {{ savings_amount }};
+                                const goal = {{ savings_goal }};
+                                const progress = (savings / goal) * 100;
+                                return `Ваши накопления: ${formatNumber(savings)} ₽ из ${formatNumber(goal)} ₽ (${progress.toFixed(1)}%). ${
+                                    progress < 50 ? 'Еще есть куда стремиться!' : 'Отличный прогресс в накоплениях!'
+                                }`;
+                            }
+
+                            // Советы
+                            if (lowerMessage.includes('совет') || lowerMessage.includes('помоги') || lowerMessage.includes('что делать')) {
+                                const tips = [
+                                    'Рекомендую откладывать минимум 10% от дохода в накопления.',
+                                    'Ведите учет всех расходов, даже самых мелких.',
+                                    'Старайтесь избегать спонтанных покупок.',
+                                    'Составьте финансовый план на месяц.',
+                                    'Создайте резервный фонд на случай непредвиденных расходов.'
+                                ];
+                                return tips[Math.floor(Math.random() * tips.length)];
+                            }
+
+                            // Советы по развлечениям
+                            if (lowerMessage.includes('кино') || lowerMessage.includes('фильм')) {
+                                const timeOfDay = lowerMessage.includes('вечер') ? 'вечернее' : 
+                                                lowerMessage.includes('утр') ? 'утреннее' : 
+                                                'дневное';
+                                const suggestions = [
+                                    `Для ${timeOfDay}го сеанса рекомендую посмотреть последние новинки в кинотеатре "Формула Кино" или "Синема Стар". В это время суток обычно ${timeOfDay === 'утреннее' ? 'самые низкие цены и мало людей' : timeOfDay === 'дневное' ? 'комфортные цены и не так много людей' : 'больше всего людей, но самая праздничная атмосфера'}`,
+                                    `На ${timeOfDay} время лучше всего подойдет ${timeOfDay === 'утреннее' ? 'легкая комедия или документальный фильм' : timeOfDay === 'дневное' ? 'приключенческий фильм или фэнтези' : 'боевик или триллер'}. Рекомендую посмотреть последние новинки проката.`,
+                                    `Для ${timeOfDay}го просмотра идеально подойдет кинотеатр в ТЦ - можно совместить с шоппингом и ${timeOfDay === 'утреннее' ? 'завтраком' : timeOfDay === 'дневное' ? 'обедом' : 'ужином'} в ресторанном дворике.`
+                                ];
+                                return suggestions[Math.floor(Math.random() * suggestions.length)];
+                            }
+
+                            if (lowerMessage.includes('ресторан') || lowerMessage.includes('кафе')) {
+                                const timeOfDay = lowerMessage.includes('вечер') ? 'вечер' : 
+                                                lowerMessage.includes('утр') ? 'утро' : 
+                                                'день';
+                                
+                                // Если спрашивают про выбор между кафе и рестораном
+                                if (lowerMessage.includes('или')) {
+                                    const isEvening = timeOfDay === 'вечер';
+                                    return `Учитывая, что сейчас ${timeOfDay}, я бы порекомендовал ${isEvening ? 'ресторан' : 'кафе'}. ${
+                                        isEvening ? 'Вечером в ресторане более располагающая атмосфера для неспешного ужина и общения' : 'В кафе днем обычно более демократичные цены и быстрое обслуживание'
+                                    }`;
+                                }
+
+                                const suggestions = [
+                                    `На ${timeOfDay} отлично подойдет ${timeOfDay === 'утро' ? 'уютная кофейня с завтраками' : timeOfDay === 'день' ? 'ресторан с бизнес-ланчем' : 'ресторан европейской кухни с вечерней программой'}. Средний чек будет около ${timeOfDay === 'утро' ? '400-600' : timeOfDay === 'день' ? '600-800' : '1500-2000'} рублей.`,
+                                    `Для ${timeOfDay}него времени рекомендую ${timeOfDay === 'утро' ? 'кафе-пекарню со свежей выпечкой и кофе' : timeOfDay === 'день' ? 'ресторан азиатской кухни с комбо-наборами' : 'ресторан с живой музыкой и авторской кухней'}`,
+                                    `В это время суток лучше всего пойти в ${timeOfDay === 'утро' ? 'семейное кафе с панорамными окнами' : timeOfDay === 'день' ? 'демократичный ресторан с открытой кухней' : 'уютный ресторан в историческом центре'}`
+                                ];
+                                return suggestions[Math.floor(Math.random() * suggestions.length)];
+                            }
+
+                            if (lowerMessage.includes('развлечен') || lowerMessage.includes('досуг') || lowerMessage.includes('куда пойти') || lowerMessage.includes('чем заняться')) {
+                                const timeOfDay = lowerMessage.includes('вечер') ? 'вечер' : 
+                                                lowerMessage.includes('утр') ? 'утро' : 
+                                                'день';
+                                
+                                const suggestions = [
+                                    `На ${timeOfDay} могу предложить ${timeOfDay === 'утро' ? 'посетить спа-центр или сходить на утреннюю йогу в парке' : timeOfDay === 'день' ? 'сходить в музей современного искусства или на выставку' : 'поиграть в боулинг или посетить караоке-бар'}. Это обойдется примерно в ${timeOfDay === 'утро' ? formatNumber(1000) + '-' + formatNumber(1500) : timeOfDay === 'день' ? formatNumber(500) + '-' + formatNumber(1000) : formatNumber(1500) + '-' + formatNumber(2000)} ₽.`,
+                                    `Учитывая, что сейчас ${timeOfDay}, рекомендую ${timeOfDay === 'утро' ? 'начать день с велопрогулки и пикника в парке' : timeOfDay === 'день' ? 'посетить интерактивный музей или мастер-класс по рисованию' : 'сходить на вечерний концерт или в театр на спектакль'}`,
+                                    `Для ${timeOfDay}него досуга отлично подойдет ${timeOfDay === 'утро' ? 'посещение ботанического сада или зоопарка' : timeOfDay === 'день' ? 'поход в аквапарк или на скалодром' : 'посещение джаз-клуба или уютного лаунж-бара'}`
+                                ];
+                                return suggestions[Math.floor(Math.random() * suggestions.length)];
+                            }
+
+                            // Обработка выбора между разными вариантами
+                            if (lowerMessage.includes('или')) {
+                                const options = [];
+                                if (lowerMessage.includes('кино')) options.push('кино');
+                                if (lowerMessage.includes('ресторан')) options.push('ресторан');
+                                if (lowerMessage.includes('кафе')) options.push('кафе');
+                                if (lowerMessage.includes('театр')) options.push('театр');
+                                if (lowerMessage.includes('парк')) options.push('парк');
+                                
+                                if (options.length >= 2) {
+                                    const timeOfDay = lowerMessage.includes('вечер') ? 'вечер' : 
+                                                    lowerMessage.includes('утр') ? 'утро' : 
+                                                    'день';
+                                    
+                                    // Логика выбора в зависимости от времени суток
+                                    let choice;
+                                    let reason;
+                                    
+                                    if (options.includes('кино') && options.includes('ресторан')) {
+                                        if (timeOfDay === 'вечер') {
+                                            choice = 'ресторан';
+                                            reason = 'вечером в ресторане более располагающая атмосфера, а после можно успеть на последний сеанс в кино';
+                                        } else {
+                                            choice = 'кино';
+                                            reason = `в ${timeOfDay === 'утро' ? 'утренние' : 'дневные'} часы билеты в кино дешевле, а после можно пообедать в ресторане`;
+                                        }
+                                    } else if (options.includes('кафе') && options.includes('ресторан')) {
+                                        if (timeOfDay === 'вечер') {
+                                            choice = 'ресторан';
+                                            reason = 'вечером ресторан предложит более подходящую атмосферу и разнообразное меню';
+                                        } else {
+                                            choice = 'кафе';
+                                            reason = `в ${timeOfDay} в кафе обычно меньше людей и демократичнее цены`;
+                                        }
+                                    }
+                                    
+                                    return `Я рекомендую выбрать ${choice}, потому что ${reason}. ${
+                                        timeOfDay === 'вечер' 
+                                            ? `Средний чек составит около ${formatNumber(1500)}-${formatNumber(2000)} ₽` 
+                                            : `Средний чек составит около ${formatNumber(700)}-${formatNumber(1000)} ₽`
+                                    }.`;
+                                }
+                            }
+
+                            // Категории расходов
+                            if (lowerMessage.includes('категор')) {
+                                const amounts = {{ amounts|tojson|safe }};
+                                const categories = {{ categories|tojson|safe }};
+                                const maxIndex = amounts.indexOf(Math.max(...amounts));
+                                return `Больше всего расходов у вас в категории "${categories[maxIndex]}": ${formatNumber(amounts[maxIndex])} ₽`;
+                            }
+
+                            // Неизвестный вопрос
+                            return 'Извините, я не совсем понял ваш вопрос. Вы можете спросить о балансе, доходах, расходах, накоплениях или попросить совет по управлению финансами.';
+                        }
+
+                        function handleMessage() {
+                            const message = userInput.value.trim();
+                            if (message) {
+                                addMessage(message, true);
+                                userInput.value = '';
+                                
+                                setTimeout(() => {
+                                    const response = getBotResponse(message);
+                                    addMessage(response);
+                                }, 500);
+                            }
+                        }
+
+                        sendButton.addEventListener('click', handleMessage);
+                        userInput.addEventListener('keypress', function(e) {
+                            if (e.key === 'Enter') {
+                                handleMessage();
+                            }
+                        });
+                    });
+                </script>
+            </div>
+        </div>
+    </div>
+
+    <!-- Подключаем Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.1.0"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Глобальная переменная для хранения объекта диаграммы
+            let expenseChart = null;
+
+            // Функция для создания или обновления диаграммы
+            function initializeChart() {
+                const ctx = document.getElementById('expenseChart');
+                
+                if (!ctx) {
+                    console.error('Элемент диаграммы не найден');
+                    return;
+                }
+                
+                // Получаем данные из серверных переменных
+                const amounts = {{ amounts|tojson|safe }};
+                const categories = {{ categories|tojson|safe }};
+                
+                // Проверяем наличие данных
+                const hasData = amounts && amounts.length > 0 && amounts.some(amount => parseFloat(amount) > 0);
+                
+                if (!hasData) {
+                    const container = document.querySelector('.chart-wrapper');
+                    if (container) {
+                        container.innerHTML = '<div class="empty-state"><i class="fas fa-chart-pie empty-icon"></i><p class="no-data">Нет данных для отображения диаграммы</p></div>';
+                    }
+                    return;
+                }
+
+                // Уничтожаем существующую диаграмму, если она есть
+                if (expenseChart) {
+                    expenseChart.destroy();
+                }
+
+                // Получаем цвет текста из текущей темы
+                const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim();
+
+                // Создаем новую диаграмму
+                expenseChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: categories.map(category => {
+                            switch(category) {
+                                case 'products': return 'Продукты';
+                                case 'food_restaurants': return 'Кафе/рестораны';
+                                case 'pharmacy': return 'Аптека/медицина';
+                                case 'pets': return 'Питомцы/ветеринарка';
+                                case 'transport': return 'Транспорт/ТС';
+                                case 'travel': return 'Путешествия/отдых';
+                                case 'marketplace': return 'Онлайн-покупки';
+                                case 'leisure': return 'Развлечения/досуг';
+                                case 'utilities': return 'ЖКУ/связь';
+                                case 'savings': return 'Накопления';
+                                case 'other': return 'Прочие расходы';
+                                default: return category;
+                            }
+                        }),
+                        datasets: [{
+                            data: amounts,
+                            backgroundColor: [
+                                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                                '#FF9F40', '#8AC24A', '#FF5722', '#607D8B', '#9C27B0', '#00BCD4'
+                            ],
+                            borderWidth: 1,
+                            hoverBorderWidth: 2,
+                            hoverOffset: 15
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    color: textColor,
+                                    font: {
+                                        size: 12,
+                                        weight: 'bold'
+                                    },
+                                    padding: 15,
+                                    usePointStyle: true
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#fff',
+                                titleFont: {
+                                    size: 14,
+                                    weight: 'bold'
+                                },
+                                bodyColor: '#fff',
+                                bodyFont: {
+                                    size: 13
+                                },
+                                padding: 12,
+                                displayColors: true,
+                                callbacks: {
+                                    label: function(context) {
+                                        const value = context.raw;
+                                        const total = context.dataset.data.reduce((a, b) => Number(a) + Number(b), 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return `${context.label}: ${new Intl.NumberFormat('ru-RU', {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        }).format(Math.abs(value))} ₽ (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        },
+                        interaction: {
+                            intersect: true,
+                            mode: 'nearest'
+                        },
+                        animation: {
+                            duration: 500
+                        },
+                        hover: {
+                            animationDuration: 0
+                        }
+                    }
+                });
+
+                // Добавляем стили для подсказок
+                const style = document.createElement('style');
+                style.textContent = `
+                    #chartjs-tooltip {
+                        background: rgba(0, 0, 0, 0.8);
+                        color: white;
+                        border-radius: 6px;
+                        padding: 10px;
+                        pointer-events: none;
+                        font-size: 14px;
+                        z-index: 1000;
+                        transition: all 0.1s ease;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            // Инициализация диаграммы после установки темы
+            setTimeout(initializeChart, 200);
+
+                // Код переключения темы перенесен в theme-switcher.js
+            
+            // Обработка переключения типов операций для накоплений
+            const savingsOperation = document.getElementById('savings-operation');
+            const savingsForm = document.getElementById('savings-form');
+            const goalForm = document.getElementById('goal-form');
+            const operationTypeField = document.getElementById('operation-type-field');
+            const savingsSubmitBtn = document.getElementById('savings-submit-btn');
+            
+            savingsOperation.addEventListener('change', function() {
+                const selectedOption = this.value;
+                
+                if (selectedOption === 'add') {
+                    savingsForm.style.display = 'block';
+                    goalForm.style.display = 'none';
+                    operationTypeField.value = 'expense';
+                    savingsSubmitBtn.innerHTML = '<i class="fas fa-plus-circle"></i> Пополнить';
+                } else if (selectedOption === 'withdraw') {
+                    savingsForm.style.display = 'block';
+                    goalForm.style.display = 'none';
+                    operationTypeField.value = 'income';
+                    savingsSubmitBtn.innerHTML = '<i class="fas fa-minus-circle"></i> Снять';
+                } else if (selectedOption === 'goal') {
+                    savingsForm.style.display = 'none';
+                    goalForm.style.display = 'block';
+                }
+            });
+            
+            // Переключение между доходом и расходом
+            document.getElementById('type').addEventListener('change', function() {
+                const type = this.value;
+                document.getElementById('income-field').style.display = type === 'income' ? 'block' : 'none';
+                document.getElementById('expense-field').style.display = type === 'expense' ? 'block' : 'none';
+            });
+
+            // Простая валидация формы
+            document.getElementById('transaction-form').addEventListener('submit', function(e) {
+                const type = document.getElementById('type').value;
+                const amountField = type === 'income' ? 'income' : 'expense';
+                const amount = document.getElementById(amountField).value.replace(/\s+/g, '').replace(',', '.');
+                
+                if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+                    e.preventDefault();
+                    document.getElementById(amountField + '-error').style.display = 'block';
+                }
+            });
+
+            // Форматирование чисел при вводе
+            function formatNumberInput(input) {
+                let value = input.value.replace(/\s+/g, '').replace(',', '.');
+                if (value && !isNaN(parseFloat(value))) {
+                    const parts = value.split('.');
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+                    input.value = parts.join('.');
+                }
+            }
+
+            // Добавляем обработчики для полей ввода
+            document.getElementById('income').addEventListener('input', function() {
+                formatNumberInput(this);
+            });
+
+            document.getElementById('expense').addEventListener('input', function() {
+                formatNumberInput(this);
+            });
+
+            // Настройка форматов дат в фильтрах
+            const setDefaultDates = () => {
+                const today = new Date();
+                const dateFrom = document.getElementById('date-from');
+                const dateTo = document.getElementById('date-to');
+
+                if (dateFrom && !dateFrom.value) {
+                    const lastMonth = new Date();
+                    lastMonth.setMonth(today.getMonth() - 1);
+                    dateFrom.valueAsDate = lastMonth;
+                }
+
+                if (dateTo && !dateTo.value) {
+                    dateTo.valueAsDate = today;
+                }
+            };
+
+            // Если нет значений дат в фильтре, установить значения по умолчанию
+            if (!document.getElementById('date-from').value && !document.getElementById('date-to').value) {
+                setDefaultDates();
+            }
+            
+            // Анимация появления элементов при загрузке
+            const animateItems = () => {
+                const items = document.querySelectorAll('.fade-in');
+                items.forEach((item, index) => {
+                    setTimeout(() => {
+                        item.style.opacity = '1';
+                    }, index * 50);
+                });
+            };
+            
+            animateItems();
+            
+            // Автоматически скрывать флеш-сообщения через 5 секунд
+            const flashMessages = document.querySelectorAll('.flash');
+            flashMessages.forEach(message => {
+                setTimeout(() => {
+                    message.style.opacity = '0';
+                    setTimeout(() => {
+                        message.style.display = 'none';
+                    }, 300);
+                }, 5000);
+            });
+            
+            // Обработчик для кнопки "Показать больше"
+            const showMoreBtn = document.getElementById('show-more-btn');
+            if (showMoreBtn) {
+                showMoreBtn.addEventListener('click', function() {
+                    const container = document.getElementById('transactions-container');
+                    const hiddenRows = document.querySelectorAll('.hidden-row');
+                    
+                    if (container.classList.contains('expanded')) {
+                        container.classList.remove('expanded');
+                        hiddenRows.forEach(row => row.style.display = 'none');
+                        this.innerHTML = '<i class="fas fa-chevron-down"></i> Показать все операции ({{ transactions|length }})';
+                    } else {
+                        container.classList.add('expanded');
+                        hiddenRows.forEach(row => row.style.display = 'table-row');
+                        this.innerHTML = '<i class="fas fa-chevron-up"></i> Свернуть';
+                    }
+                });
+            }
+        });
+    </script>
+
+    <!-- Подключаем скрипт переключения темы -->
+    <script src="{{ url_for('static', filename='theme-switcher.js') }}"></script>
+</body>
+</html>
